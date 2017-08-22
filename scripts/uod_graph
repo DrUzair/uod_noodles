@@ -1,0 +1,368 @@
+from os import listdir
+from os.path import isfile, join
+import csv
+import re
+from random import randint
+import math
+import nltk
+
+class Word():    
+    ID = 0; # ID for gephi
+    val = '' # value- the word itself
+    # words_aft_dic = dict()# dict of adjacent words after
+    # words_bef_dic = dict() # dict of adjacent words before
+    idf = 0 # inverse document freq
+    # freq = 0 # term freq in the corpus
+    avg_pis = 0 # avg position in a sentence
+    cum_pis = 0
+    def __init__(self):
+        self.ID = 0; # ID for gephi
+        self.val = '' # value- the word itself
+        self.words_aft_dic = dict()# dict of adjacent words after
+        self.words_bef_dic = dict() # dict of adjacent words before
+        self.idf = 0 # inverse document freq
+        self.freq = 0 # term freq in the corpus
+        avg_pis = 0 # avg position in a sentence
+        cum_pis = 0
+    def getWordFreq(self):
+        return self.freq
+
+    def setWordFreq(self, freq_update):
+        self.freq = freq_update
+    
+    def getWordAftFreq(self, word_aft):
+        word_aft_freq = 0
+        if (word_aft in self.words_aft_dic.keys()):
+            word_aft_freq = self.words_aft_dic[word_aft]            
+        return word_aft_freq
+    
+    def getWordBefFreq(self, word_bef):
+        word_bef_freq = 0
+        if (word_bef in self.words_bef_dic.keys()):
+            word_bef_freq = self.words_bef_dic[word_bef]
+        return word_bef_freq
+    
+    #def getRandWordBef(self):
+    #    for word_bef in self.words_bef_dic.keys():
+            
+    def getWordsBefDic(self):
+        return self.words_bef_dic
+    
+    def getWordAftFreqDist(self):        
+        word_aft_freq_dist = []
+        for wordaft in self.words_aft_dic.keys():
+            word_aft_freq_dist.append(self.words_aft_dic[wordaft])
+        return sorted(word_aft_freq_dist)
+    
+    def getWordBefFreqDist(self):        
+        word_bef_freq_dist = []
+        for wordaft in self.words_bef_dic.keys():
+            word_bef_freq_dist.append(self.words_bef_dic[wordaft])
+        return sorted(word_bef_freq_dist)
+    
+    def getBefNeborVarietyIndex(self, infreq_threshold):
+        infreq_nebors = 0
+        freq_nebors_freq_sum = 0
+        word_bef_freq_sum = 0
+        for wordbef in self.words_bef_dic.keys():
+            word_bef_freq_sum = word_bef_freq_sum + self.words_bef_dic[wordbef]
+            if (self.words_bef_dic[wordbef] < infreq_threshold):
+                infreq_nebors = infreq_nebors + 1
+            else:
+                freq_nebors_freq_sum = freq_nebors_freq_sum + self.words_bef_dic[wordbef]
+        
+        infreq_to_total_nebors_x = 0
+        if (len(self.words_bef_dic) != 0):
+            infreq_to_total_nebors_x = infreq_nebors/(len(self.words_bef_dic))
+        
+        infreq_to_total_nebors_y = 0
+        if (word_bef_freq_sum != 0 ):
+            infreq_to_total_nebors_y = freq_nebors_freq_sum/(word_bef_freq_sum)       
+        
+        return {'infreq_to_total_nebors_x': infreq_to_total_nebors_x, 
+                'infreq_to_total_nebors_y': infreq_to_total_nebors_y }
+
+    def getAftNeborVarietyIndex(self, infreq_threshold):
+        infreq_nebors = 0
+        freq_nebors_freq_sum = 0
+        word_aft_freq_sum = 0
+        for wordaft in self.words_aft_dic.keys():
+            word_aft_freq_sum = word_aft_freq_sum + self.words_aft_dic[wordaft]
+            if (self.words_aft_dic[wordaft] < infreq_threshold):
+                infreq_nebors = infreq_nebors + 1
+            else:
+                freq_nebors_freq_sum = freq_nebors_freq_sum + self.words_aft_dic[wordaft]
+        
+        infreq_to_total_nebors_x = 0
+        if (len(self.words_aft_dic) != 0):
+            infreq_to_total_nebors_x = infreq_nebors/(len(self.words_aft_dic))
+        
+        infreq_to_total_nebors_y = 0
+        if (word_aft_freq_sum != 0 ):
+            infreq_to_total_nebors_y = freq_nebors_freq_sum/(word_aft_freq_sum)       
+            
+        
+        return {'infreq_to_total_nebors_x': infreq_to_total_nebors_x, 
+                'infreq_to_total_nebors_y': infreq_to_total_nebors_y }
+    
+    def getNeborVarietyIndex(self):
+        word_aft_freq_sum = 0
+        infreq_nebors = 0
+        freq_nebors_freq_sum = 0
+        for wordaft in self.words_aft_dic.keys():
+            word_aft_freq_sum = word_aft_freq_sum + self.words_aft_dic[wordaft]
+            if (self.words_aft_dic[wordaft] < 2):
+                infreq_nebors = infreq_nebors + 1
+            else:
+                freq_nebors_freq_sum = freq_nebors_freq_sum + self.words_aft_dic[wordaft]
+        
+        word_bef_freq_sum = 0
+        for wordbef in self.words_bef_dic.keys():
+            word_bef_freq_sum = word_bef_freq_sum + self.words_bef_dic[wordbef]
+            if (self.words_bef_dic[wordbef] < 2):
+                infreq_nebors = infreq_nebors + 1
+            else:
+                freq_nebors_freq_sum = freq_nebors_freq_sum + self.words_bef_dic[wordbef]
+        
+        infreq_to_total_nebors_x = 0
+        if ((len(self.words_aft_dic)+len(self.words_bef_dic)) != 0):
+            infreq_to_total_nebors_x = infreq_nebors/(len(self.words_aft_dic)+len(self.words_bef_dic))
+        infreq_to_total_nebors_y = freq_nebors_freq_sum/(word_aft_freq_sum + word_bef_freq_sum)
+        
+        freq_nebors_freq_sum
+        
+        return {'infreq_to_total_nebors_x': infreq_to_total_nebors_x, 
+                'infreq_to_total_nebors_y': infreq_to_total_nebors_y }
+    
+    def getWordsAftDic(self):
+        return self.words_aft_dic
+    def addWordAft(self, word):
+        if(word in self.words_aft_dic.keys()):
+            self.words_aft_dic[word] = self.words_aft_dic[word] + 1
+        else:
+            self.words_aft_dic[word] = 1
+        
+    def addWordBef(self, word):
+        if(word in self.words_bef_dic.keys()):
+            self.words_bef_dic[word] = self.words_bef_dic[word] + 1
+        else:
+            self.words_bef_dic[word] = 1 
+        
+class WordLink():
+    srcWord = Word() # source word
+    tgtWord = Word() # target word
+    freq = 0 # link freq    
+    def setFreq(self, f):
+        self.freq = f
+    def getFreq(self):
+        return self.freq
+    def getVal(self):
+        return self.srcWord.val + '-' + self.tgtWord.val
+    def getSrc2TgtTransitProb(self):
+        word_aft_freq_dist = self.srcWord.getWordAftFreqDist()        
+        src2tgt_transit_prob = round(self.srcWord.getWordAftFreq(self.tgtWord.val)/sum(word_aft_freq_dist), 4)
+         
+        word_bef_freq_dist = self.tgtWord.getWordBefFreqDist()
+        tgt2src_transit_prob = round(self.tgtWord.getWordBefFreq(self.srcWord.val)/sum(word_bef_freq_dist), 4)
+        
+        if(self.srcWord.val == 'New' and self.tgtWord.val == 'York'):
+            print('self.srcWord.getWordAftFreq(self.tgtWord.val) -->', self.srcWord.getWordAftFreq(self.tgtWord.val))
+            print('sum(word_aft_freq_dist) -->', sum(word_aft_freq_dist))
+            print('self.tgtWord.getWordBefFreq(self.srcWord.val) -->', self.tgtWord.getWordBefFreq(self.srcWord.val))
+            print('sum(word_bef_freq_dist) -->', sum(word_bef_freq_dist))
+        
+        return {'src2tgt_transit_prob': src2tgt_transit_prob, 'tgt2src_transit_prob': tgt2src_transit_prob}
+    
+def main():    
+    sample_text = ""
+    files_path = 'Wikipedia\\wiki_phone_articles\\'
+    files = [f for f in listdir(files_path) if isfile(join(files_path, f))]
+    word_dic = {}
+    word_link_dic = {}        
+    file_count = 1        
+    for file in files:
+        file_count = file_count + 1                
+        #if (file_count > 10):
+        #    break
+        text = ''
+        with open(files_path+file, encoding='utf-8') as f:            
+            lines = f.readlines()            
+            content = ' '.join(lines)
+            lines = re.split(r'(?<!\w\.\w.)(?<![A-Z][a-z]\.)(?<=\.|\?)\s', content)
+            for line in lines:
+                #line = line[0:line.rfind('.')].strip()
+                line = re.sub(r"\[|\]|\(|\"|['s]\)|/|“|”", " ", line)
+                line = line.replace(',', '').strip()
+                items_list = line.split(' ')            
+                
+                if (len(items_list) < 2):
+                    continue
+                
+                if('Android' in items_list):
+                    # print(line[line.find('York')-10:line.find('York')+10])
+                    print(line)
+                
+                previous_word = None
+                current_word = None
+                pis = 1
+                for item in items_list:                     
+                    if (item.endswith('.')):
+                        item = item[0:len(item)-1]
+                    
+                    # if the item(word) is already in the dictionary, grab it otherwise create new one
+                    if (item in word_dic.keys()):
+                        current_word = word_dic[item]                    
+                    else:
+                        current_word = Word()
+                        current_word.ID = len(word_dic) + 1
+                        current_word.val = item
+                        word_dic[item] = current_word                    
+
+                    current_word.setWordFreq(current_word.getWordFreq() + 1)
+                    
+                    current_word.cum_pis = current_word.cum_pis + round(pis/len(items_list),2)
+                    current_word.avg_pis = round(current_word.cum_pis/current_word.freq,2)                   
+                    
+                    # the pis == 1 means its first word of the sentence. Since it has no previous word, no link obj can be made
+                    if (pis > 1):
+                        link = None
+                        str_link = previous_word.val +'-'+ current_word.val                    
+                        # if the link is already in link-dictionary, grab it or otherwise create a new one
+                        if (str_link in  word_link_dic.keys()):                        
+                            link = word_link_dic[str_link]                        
+                        else:
+                            link = WordLink()                    
+                            link.tgtWord = current_word
+                            link.srcWord = previous_word                    
+                            word_link_dic[str_link] = link
+
+
+                        link.setFreq(link.getFreq() + 1)                                             
+
+                        current_word.addWordBef(previous_word.val)
+                        previous_word.addWordAft(current_word.val)
+                    # current_word becomes previous-word for next word (iteration)
+                    previous_word = current_word
+
+                    pis = pis + 1                    
+                
+    f_nodes = open('Wikipedia\\wiki_gephi_nodes.csv', 'w', newline='', encoding='utf-8')
+    f_nodes_writer = csv.writer(f_nodes, delimiter=",")
+    attrib_list = ["Id", "Label", "Weight", 
+                   "UniqNeighborsBef", "TotalNeborsBef", "NeighborsBefWtd", 
+                   "UniqNeighborsAft", "TotalNeborsAft", "NeighborsAftWtd",                    
+                   "InfreqBefNeborVarietyInd", "FreqBefNeborBondingInd", 
+                   "InfreqAftNeborVarietyInd", "FreqAftNeborBondingInd", 
+                   "PiS"]
+    f_nodes_writer.writerow(attrib_list) 
+    for key in word_dic.keys():
+        nodes_row = []
+        if (word_dic[key].getWordFreq() > 10):
+            nodes_row.append(word_dic[key].ID)                                             # Id
+            nodes_row.append(word_dic[key].val)                                            # Label
+            nodes_row.append(word_dic[key].getWordFreq())                                  # Weight          
+            
+            words_bef_dic = word_dic[key].getWordsBefDic()
+            
+            nodes_row.append(len(word_dic[key].getWordsBefDic()))                          # UniqNeighborsBef
+            word_freq_sum_bef = 0
+            infreq_nebors = 0
+            for wordbef in words_bef_dic.keys():
+                word_freq_sum_bef = word_freq_sum_bef + words_bef_dic[wordbef]
+                if (words_bef_dic[wordbef] < 2):
+                    infreq_nebors = infreq_nebors + 1
+                    
+            nodes_row.append(word_freq_sum_bef )                                           # TotalNeborsBef
+            nodes_row.append(round( (len(words_bef_dic))/(word_freq_sum_bef + 1), 4))      # NeighborsBefWtd
+            
+            words_aft_dic = word_dic[key].getWordsAftDic()
+            word_freq_sum_aft = 0;
+            nodes_row.append(len(words_aft_dic))                                           # UniqNeighborsAft                                
+            for wordaft in words_aft_dic.keys():
+                word_freq_sum_aft = word_freq_sum_aft + words_aft_dic[wordaft]
+                if (words_aft_dic[wordaft] < 2):
+                    infreq_nebors = infreq_nebors + 1
+                    
+            nodes_row.append(word_freq_sum_aft )                                           # TotalNeborsAft
+            nodes_row.append(round((len(words_aft_dic))/(word_freq_sum_aft + 1), 4))         # NeighborsAftWtd 
+            
+            infreq_threshold = 5
+            
+            x = word_dic[key].getBefNeborVarietyIndex(infreq_threshold)
+            nodes_row.append(x['infreq_to_total_nebors_x']/len(word_dic))                  # InfreqBefNeborVarietyInd  
+            nodes_row.append(x['infreq_to_total_nebors_y']/len(word_dic))                  # FreqBefNeborBondingInd                          
+            
+            x = word_dic[key].getAftNeborVarietyIndex(infreq_threshold)
+            nodes_row.append(x['infreq_to_total_nebors_x']/len(word_dic))                  # InfreqAftNeborVarietyInd  
+            nodes_row.append(x['infreq_to_total_nebors_y']/len(word_dic))                  # FreqAftNeborBondingInd                          
+            
+            nodes_row.append(word_dic[key].avg_pis)                                        # PiS      
+            
+            word_bef_dic = word_dic[key].getWordsBefDic()
+            infreq_to_total_nebors_x_sum = 0
+            infreq_to_total_nebors_y_sum = 0
+            for word_bef in word_bef_dic.keys():
+                x = word_dic[word_bef].getBefNeborVarietyIndex(infreq_threshold)
+                infreq_to_total_nebors_x_sum = infreq_to_total_nebors_x_sum + x['infreq_to_total_nebors_x']/len(word_dic)
+                infreq_to_total_nebors_y_sum = infreq_to_total_nebors_y_sum + x['infreq_to_total_nebors_y']/len(word_dic)
+            
+            nodes_row.append(infreq_to_total_nebors_x_sum)                  # InfreqAftNeborVarietyInd  
+            nodes_row.append(infreq_to_total_nebors_y_sum)                  # FreqAftNeborBondingInd    
+            
+            f_nodes_writer.writerow(nodes_row)
+            
+    f_nodes.close()
+    
+    lookInside(word_dic, 'New')
+    lookInside(word_dic, 'York')
+    
+    f_edges = open('Wikipedia\\wiki_gephi_edges.csv', 'w', newline='', encoding='utf-8')
+    f_edges_writer = csv.writer(f_edges, delimiter=",")
+    attrib_list = ["Source", "Target", "SourceVal", "TargetVal", "Weight", "Label", "Src2Tgt_TransitProb", "Tgt2Src_TransitProb"]
+    f_edges_writer.writerow(attrib_list)
+    for link in word_link_dic.keys():
+        link_obj = word_link_dic[link]
+        if (link_obj.freq > 0):
+            # Source , Target , Weight , Label
+            edges_row = []
+            edges_row.append(link_obj.srcWord.ID)
+            edges_row.append(link_obj.tgtWord.ID)
+            edges_row.append(link_obj.srcWord.val)
+            edges_row.append(link_obj.tgtWord.val)
+            edges_row.append(link_obj.getFreq())
+            edges_row.append(link_obj.getFreq())  
+            tansit_prob_dic = link_obj.getSrc2TgtTransitProb()
+            edges_row.append(tansit_prob_dic['src2tgt_transit_prob'])
+            edges_row.append(tansit_prob_dic['tgt2src_transit_prob'])
+            f_edges_writer.writerow(edges_row)
+     
+    f_edges.close()   
+    
+    rand_word_ind = randint(0, len(word_link_dic))
+    rand_link = word_link_dic[list(word_link_dic.keys())[rand_word_ind]]
+    print(rand_link.tgtWord.val)
+    word = word_dic[rand_link.tgtWord.val]
+    
+
+def lookInside(word_dic, word):
+    print('####################'+word+'##########################')
+    test_word = word_dic[word]
+    test_word_bef_dic = test_word.getWordsBefDic()
+    
+    print(test_word.getWordsBefDic())
+    print(test_word.getWordsAftDic())
+    
+    infreq_threshold = 5
+    
+    infreq_to_total_nebors_x_sum = 0
+    infreq_to_total_nebors_y_sum = 0
+    for word_bef in test_word_bef_dic.keys():
+        x = word_dic[word_bef].getBefNeborVarietyIndex(infreq_threshold)
+        infreq_to_total_nebors_x_sum = infreq_to_total_nebors_x_sum + x['infreq_to_total_nebors_x']/len(word_dic)
+        infreq_to_total_nebors_y_sum = infreq_to_total_nebors_y_sum + x['infreq_to_total_nebors_y']/len(word_dic)
+        
+    print(word, 'infreq_to_total_nebors_x_sum', infreq_to_total_nebors_x_sum, 
+          'infreq_to_total_nebors_y_sum', infreq_to_total_nebors_y_sum )
+    
+if __name__ == '__main__':
+    main()
